@@ -20,10 +20,10 @@ CC_FLAG_LIBRARY 	:= -I
 # Project Configuration
 # ------------------------------------------------------------------------------
 PROJ_DIR	:= .
-PROJ_NAME	:= stm32f4_timer
+PROJ_NAME	:= stm32f4_usart
 
 MCU_DEFS 			:= -DSTM32F4 -DSTM32F407 -DSTM32F407xx -DSTM32F40_41xxx 
-MCU_DEFS			+= -DUSE_STDPERIPH_DRIVER -D_DEFAULT_SOURCE
+MCU_DEFS			+= -DUSE_STDPERIPH_DRIVER -D_DEFAULT_SOURCE -DHSE_VALUE=8000000
 # For DSP library
 MCU_DEFS 			+= -DARM_MATH_CM4 -D__FPU_PRESENT=1
 MCU_SETTINGS 	:= -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 
@@ -34,10 +34,8 @@ INC_DIRS	+= $(CC_FLAG_LIBRARY)$(PROJ_DIR)/spl/inc
 INC_DIRS	+= $(CC_FLAG_LIBRARY)$(PROJ_DIR)/spl/src
 INC_DIRS	+= $(CC_FLAG_LIBRARY)$(PROJ_DIR)/inc
 INC_DIRS	+= $(CC_FLAG_LIBRARY)D:/Work/6._IDE/gcc-arm-none-eabi/arm-none-eabi/include
-
-STARTUP_DIR					:= $(PROJ_DIR)/etc
-LINKER_SCRIPT_FILE	:= $(PROJ_DIR)/etc/STM32F417IGHx_FLASH.ld
-SYSTEM_CONFIG_DIR		:= D:/Work/6._IDE/vcs/arm/lib/cmsis/variant
+# STARTUP_DIR, LINKER_SCRIPT_FILE, SYSTEM_CONFIG_DIR
+LINKER_STARTUP_DIR	:= $(PROJ_DIR)/etc 
 ARM_DSP_LIB					:= D:/Work/6._IDE/vcs/arm/lib/cmsis/dsp_lib/GCC
 
 PROJ_OUTPUT_DIR	:= $(PROJ_DIR)/output
@@ -111,18 +109,15 @@ cleanlib:
 	@rm -rf $(SPL_OBJ_DIR)/*.*
 
 makelibrary: $(PROJ_OUTPUT_DIR)/lib$(PROJ_NAME).a
-$(PROJ_OUTPUT_DIR)/lib$(PROJ_NAME).a: $(SPL_OBJ_DIR)/system_stm32f4xx.o $(SPL_OBJ_FILES) 
+$(PROJ_OUTPUT_DIR)/lib$(PROJ_NAME).a: $(SPL_OBJ_FILES) 
 	$(AR) $(AR_FLAGS) $@ $+
 	$(RANDLIB) $@
 	
-$(SPL_OBJ_DIR)/system_stm32f4xx.o: $(SYSTEM_CONFIG_DIR)/system_stm32f4xx.c
-	$(CC) $(CC_FLAGS) -MMD -MP -o $@ $<
-
 $(SPL_OBJ_DIR)/%.o: $(SPL_SRC_DIR)/%.c
 	$(CC) $(CC_FLAGS) -MMD -MP -o $@ $<
 
 buildsource: $(PROJ_OBJ_DIR)/startup_stm32f40_41xxx.o $(PROJ_OBJ_FILES)
-$(PROJ_OBJ_DIR)/startup_stm32f40_41xxx.o: $(STARTUP_DIR)/startup_stm32f40_41xxx.s
+$(PROJ_OBJ_DIR)/startup_stm32f40_41xxx.o: $(PROJ_DIR)/etc/startup_stm32f40_41xxx.s
 	$(CC) $(AS_FLAGS) -o $@ $+
 
 $(PROJ_OBJ_DIR)/%.o: $(PROJ_SRC_DIR)/%.c
@@ -133,8 +128,8 @@ $(PROJ_OBJ_DIR)/%.o: $(PROJ_SRC_DIR)/%.c
 
 link: $(PROJ_OUTPUT_DIR)/$(PROJ_NAME).elf
 $(PROJ_OUTPUT_DIR)/%.elf: $(PROJ_OBJ_FILES) $(PROJ_OBJ_DIR)/startup_stm32f40_41xxx.o \
-$(PROJ_OUTPUT_DIR)/lib$(PROJ_NAME).a $(LINKER_SCRIPT_FILE)
-	$(CC) $(LD_FLAGS) -o $@ -T$(LINKER_SCRIPT_FILE) -Wl,-Map=$(PROJ_OUTPUT_DIR)/$(PROJ_NAME).map \
+$(PROJ_OUTPUT_DIR)/lib$(PROJ_NAME).a $(PROJ_DIR)/etc/STM32F417IGHx_FLASH.ld
+	$(CC) $(LD_FLAGS) -o $@ -T$(PROJ_DIR)/etc/STM32F417IGHx_FLASH.ld -Wl,-Map=$(PROJ_OUTPUT_DIR)/$(PROJ_NAME).map \
 $(PROJ_OBJ_FILES) $(PROJ_OBJ_DIR)/startup_stm32f40_41xxx.o $(PROJ_OUTPUT_DIR)/lib$(PROJ_NAME).a \
 $(ARM_DSP_LIB)/libarm_cortexM4lf_math.a
 

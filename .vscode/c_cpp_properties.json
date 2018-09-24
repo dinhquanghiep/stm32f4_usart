@@ -15,7 +15,8 @@
         "STM32F407xx",
         "STM32F40_41xxx",
         "USE_STDPERIPH_DRIVER",
-        "_DEFAULT_SOURCE"
+        "_DEFAULT_SOURCE",
+        "HSE_VALUE=8000000"
       ],
       "intelliSenseMode": "clang-x64",
       "compilerPath": "D:/Work/6._IDE/gcc-arm-none-eabi/bin/gcc-arm-none-eabi.exe",

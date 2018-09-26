@@ -23,6 +23,7 @@
 #include <stm32f4xx.h>
 #include <stm32f4xx_rcc.h>
 #include <stm32f4xx_gpio.h>
+#include <stm32f4xx_dma.h>
 #include <stm32f4xx_usart.h>
 #include <misc.h>
 #include <string.h>
@@ -44,11 +45,13 @@
 volatile uint32_t time_ms = 0;
 /* Private variables ---------------------------------------------------------*/
 static uint8_t buff_recv[100];
+static uint8_t buff_send[] = "Dinh Quang Hiep";
 static uint8_t buffer_count = 0;
 /* Private function prototypes -----------------------------------------------*/
 static void rcc_config(void);
 void delay_ms(uint32_t ms);
 static void gpio_config(void);
+static void dma_config(void);
 static void usart_config(void);
 static void nvic_config(void);
 /* Public functions ----------------------------------------------------------*/
@@ -142,6 +145,45 @@ static void gpio_config(void) {
 
 }
 
+/** @brief  Config the clocks for system
+  * @param  None
+  * 
+  * @retval None
+  */
+static void dma_config(void) {
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
+
+  DMA_DeInit(DMA1_Stream6);
+  DMA_InitTypeDef DMA_InitStruct;
+  DMA_StructInit(&DMA_InitStruct);
+  DMA_InitStruct.DMA_Channel = DMA_Channel_4;
+  DMA_InitStruct.DMA_PeripheralBaseAddr = USART2_BASE + 0x04;
+  DMA_InitStruct.DMA_Memory0BaseAddr = buff_send;
+  DMA_InitStruct.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+  DMA_InitStruct.DMA_BufferSize = strlen(buff_send);
+  DMA_InitStruct.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+  DMA_InitStruct.DMA_MemoryInc = DMA_MemoryInc_Enable;
+  DMA_InitStruct.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+  DMA_InitStruct.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+  DMA_InitStruct.DMA_Mode = DMA_Mode_Normal;
+  DMA_InitStruct.DMA_Priority = DMA_Priority_High;
+  DMA_InitStruct.DMA_FIFOMode = DMA_FIFOMode_Disable;
+  DMA_InitStruct.DMA_FIFOThreshold = DMA_FIFOStatus_1QuarterFull;
+  DMA_InitStruct.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+  DMA_InitStruct.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+  DMA_Init(DMA1_Stream6, &DMA_InitStruct);
+
+
+  DMA_InitStruct.DMA_Mode = DMA_Mode_Circular;
+  DMA_InitStruct.DMA_BufferSize = 100;
+  DMA_InitStruct.DMA_DIR = DMA_DIR_PeripheralToMemory;
+  DMA_InitStruct.DMA_Memory0BaseAddr = buff_recv;
+  DMA_Init(DMA1_Stream5, &DMA_InitStruct);
+  // DMA_ITConfig(DMA1_Stream6, DMA_IT_TC, ENABLE);
+
+  DMA_Cmd(DMA1_Stream6, ENABLE);
+  DMA_Cmd(DMA1_Stream5, ENABLE);
+}
 /** @brief  Config the UASRT2
   * @param  None
   * 
@@ -152,18 +194,18 @@ static void usart_config(void) {
   USART_InitTypeDef USART_InitStruct;
   USART_StructInit(&USART_InitStruct);
   USART_InitStruct.USART_BaudRate = 115200;
-  USART_InitStruct.USART_WordLength = USART_WordLength_8b;
+  USART_InitStruct.USART_WordLength = USART_WordLength_9b;
   USART_InitStruct.USART_StopBits = USART_StopBits_1;
-  USART_InitStruct.USART_Parity = USART_Parity_No;
+  USART_InitStruct.USART_Parity = USART_Parity_Even;
   USART_InitStruct.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
   USART_InitStruct.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
   USART_OverSampling8Cmd(USART2, DISABLE);
   USART_Init(USART2, &USART_InitStruct);
 
-  // USART_DMACmd(USART2, USART_DMAReq_Rx | USART_DMAReq_Tx, ENABLE);
-  USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+  // USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 
   USART_Cmd(USART2, ENABLE);
+  USART_DMACmd(USART2, USART_DMAReq_Tx | USART_DMAReq_Rx, ENABLE);
 }
 
 /** @brief  Config the NVIC
@@ -178,28 +220,46 @@ static void nvic_config(void) {
   NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
   NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStruct);
+
+  NVIC_InitStruct.NVIC_IRQChannel = DMA1_Stream6_IRQn;
+  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 1;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
+  NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStruct);
 }
 /* Main source ---------------------------------------------------------------*/
 int main(void) {
   rcc_config();
   gpio_config();
+  dma_config();
   usart_config();
   nvic_config();
   uint8_t chuoi[] = "Chao mung cac ban den voi phan quan ly su dung command line\n"
 "    + nhap vao ki tu, ket thuc bang dau cham\n";
 /* Toc do baud 115200 truye chuoi tren mat 12ms */
   while (1) {
+    // delay_ms(500);
+    while (USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET) {
+      /* Wait until Transmistion complete */
+    }
+    while (DMA_GetFlagStatus(DMA1_Stream6, DMA_FLAG_TCIF6) == RESET) {
+      /* Wait until Transmistion complete */
+    }
     for (uint16_t len = 0; len < strlen(chuoi); len++) {
-      while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET) {
-        /* Wait until Transmistion complete */
-      }
+    while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET) {
+      /* Wait until Transmistion complete */
+    }
       USART_SendData(USART2, chuoi[len]);
     }
 
+    // USART_DMACmd(USART2, USART_DMAReq_Tx, DISABLE);
+    // DMA_Cmd(DMA1_Stream6, DISABLE);
+    USART_ClearFlag(USART2, USART_FLAG_TC);
+    DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);
+    DMA_Cmd(DMA1_Stream6, ENABLE);
+    // USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);
     GPIO_ToggleBits(GPIOD, LED_BLUE);
     delay_ms(500);
-    while (1) {
-    }
   }
   return 0;
 }
@@ -230,4 +290,8 @@ void USART2_IRQHandler(void) {
       buffer_count = 0;
     }
   }
+}
+
+void DMA1_Stream4_IRQHandler(void) {
+
 }

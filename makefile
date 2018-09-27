@@ -3,7 +3,8 @@
 # ------------------------------------------------------------------------------
 # TOOLCHAIN_DIR				:= D:/Work/6._IDE/gcc-arm-none-eabi/bin/
 TOOLCHAIN_DIR			:= 
-TOOLCHAIN_PREFIX 	:= arm-none-eabi-
+# TOOLCHAIN_PREFIX 	:= arm-none-eabi-
+TOOLCHAIN_PREFIX 	:= arm-atollic-eabi-
 CC								:= $(TOOLCHAIN_DIR)$(TOOLCHAIN_PREFIX)gcc
 AR								:= $(TOOLCHAIN_DIR)$(TOOLCHAIN_PREFIX)ar
 RANDLIB						:= $(TOOLCHAIN_DIR)$(TOOLCHAIN_PREFIX)ranlib
@@ -33,7 +34,8 @@ INC_DIRS	+= $(CC_FLAG_LIBRARY)D:/Work/6._IDE/vcs/arm/lib/cmsis/variant
 INC_DIRS	+= $(CC_FLAG_LIBRARY)$(PROJ_DIR)/spl/inc
 INC_DIRS	+= $(CC_FLAG_LIBRARY)$(PROJ_DIR)/spl/src
 INC_DIRS	+= $(CC_FLAG_LIBRARY)$(PROJ_DIR)/inc
-INC_DIRS	+= $(CC_FLAG_LIBRARY)D:/Work/6._IDE/gcc-arm-none-eabi/arm-none-eabi/include
+# INC_DIRS	+= $(CC_FLAG_LIBRARY)D:/Work/6._IDE/gcc-arm-none-eabi/arm-none-eabi/include
+INC_DIRS	+= $(CC_FLAG_LIBRARY)"C:/Program Files (x86)/Atollic/TrueSTUDIO for STM32 9.0.1/ARMTools/arm-atollic-eabi/include"
 # STARTUP_DIR, LINKER_SCRIPT_FILE, SYSTEM_CONFIG_DIR
 LINKER_STARTUP_DIR	:= $(PROJ_DIR)/etc 
 ARM_DSP_LIB					:= D:/Work/6._IDE/vcs/arm/lib/cmsis/dsp_lib/GCC

@@ -45,7 +45,8 @@
 volatile uint32_t time_ms = 0;
 /* Private variables ---------------------------------------------------------*/
 static uint8_t buff_recv[100];
-static uint8_t buff_send[] = "Dinh Quang Hiep";
+static uint8_t count = 0;
+static uint8_t buff_send[] = "Dinh Quang Hiep\nDinh Quang Hiep\nDinh Quang Hiep\n";
 static uint8_t buffer_count = 0;
 /* Private function prototypes -----------------------------------------------*/
 static void rcc_config(void);
@@ -227,7 +228,7 @@ static void dma_config(void) {
   // DMA_ITConfig(DMA1_Stream6, DMA_IT_TC, ENABLE);
 
   DMA_Cmd(DMA1_Stream6, ENABLE);
-  DMA_Cmd(DMA1_Stream5, ENABLE);
+  // DMA_Cmd(DMA1_Stream5, ENABLE);
 }
 /** @brief  Config the UASRT2
   * @param  None
@@ -238,7 +239,7 @@ static void usart_config(void) {
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
   USART_InitTypeDef USART_InitStruct;
   USART_StructInit(&USART_InitStruct);
-  USART_InitStruct.USART_BaudRate = 57600;
+  USART_InitStruct.USART_BaudRate = 9600;
   USART_InitStruct.USART_WordLength = USART_WordLength_9b;
   USART_InitStruct.USART_StopBits = USART_StopBits_1;
   USART_InitStruct.USART_Parity = USART_Parity_Even;
@@ -283,30 +284,35 @@ int main(void) {
 "    + nhap vao ki tu, ket thuc bang dau cham\n";
 /* Toc do baud 115200 truye chuoi tren mat 12ms */
   while (1) {
-    // delay_ms(500);
-    while (USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET) {
-      /* Wait until Transmistion complete */
+    // // delay_ms(500);
+    // while (DMA_GetFlagStatus(DMA1_Stream6, DMA_FLAG_TCIF6) == RESET) {
+    //   /* Wait until Transmistion complete */
+    // }
+    delay_ms(500);
+    if (USART_GetFlagStatus(USART2, USART_FLAG_TC) != RESET) {
+      for (uint16_t len = 0; len < strlen(chuoi); len++) {
+        while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET) {
+          /* Wait until Transmistion complete */
+        }
+        USART_SendData(USART2, chuoi[len]);
+      }
     }
-    while (DMA_GetFlagStatus(DMA1_Stream6, DMA_FLAG_TCIF6) == RESET) {
-      /* Wait until Transmistion complete */
+    buff_recv[count++] = USART_ReceiveData(USART2);
+    GPIO_ToggleBits(GPIOD, LED_BLUE);
+    delay_ms(500);
+    // delay_us(500000);
+    if (USART_GetFlagStatus(USART2, USART_FLAG_TC) != RESET) {
+      DMA1_Stream6->M0AR = buff_send;
+      DMA1_Stream6->NDTR = strlen(buff_send);
+      DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);
+      DMA_Cmd(DMA1_Stream6, ENABLE);
     }
-    for (uint16_t len = 0; len < strlen(chuoi); len++) {
-    while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET) {
-      /* Wait until Transmistion complete */
-    }
-      USART_SendData(USART2, chuoi[len]);
-    }
-
-    // USART_DMACmd(USART2, USART_DMAReq_Tx, DISABLE);
-    // DMA_Cmd(DMA1_Stream6, DISABLE);
-    USART_ClearFlag(USART2, USART_FLAG_TC);
-    DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);
-    DMA_Cmd(DMA1_Stream6, ENABLE);
-    // USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);
-    while (1) {
-      GPIO_ToggleBits(GPIOD, LED_BLUE);
-      delay_ms(500);
-      // delay_us(500000);
+    delay_ms(500);
+    if (USART_GetFlagStatus(USART2, USART_FLAG_TC) != RESET) {
+      DMA1_Stream6->M0AR = "Toi ten la dinh quang hiep";
+      DMA1_Stream6->NDTR = strlen("Toi ten la dinh quang hiep");
+      DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);
+      DMA_Cmd(DMA1_Stream6, ENABLE);
     }
   }
   return 0;
@@ -338,8 +344,4 @@ void USART2_IRQHandler(void) {
       buffer_count = 0;
     }
   }
-}
-
-void DMA1_Stream4_IRQHandler(void) {
-
 }

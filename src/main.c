@@ -50,6 +50,8 @@ static uint8_t buffer_count = 0;
 /* Private function prototypes -----------------------------------------------*/
 static void rcc_config(void);
 void delay_ms(uint32_t ms);
+void delay_us(uint32_t us);
+uint32_t millis(void);
 static void gpio_config(void);
 static void dma_config(void);
 static void usart_config(void);
@@ -87,22 +89,65 @@ static void rcc_config(void) {
   RCC_PCLK2Config(RCC_HCLK_Div2);
 
   SystemCoreClockUpdate();
-  SysTick_Config(167999); 
+  SysTick_Config(168000); 
 }
 
 /** @brief  Delay in ms
   * @param  the time to delay(unit: ms)
-  * 
+  * @note   error very small, base others interrupt
   * @retval None
   */
 void delay_ms(uint32_t ms) {
+  if (!ms) return;
+
   uint32_t curr_time_ms = time_ms;
+  uint32_t curr_tick = SysTick->VAL;
   while (ms) {
     if (curr_time_ms != time_ms) {
       ms--;
       curr_time_ms = time_ms;
     }
   }
+  while ((SysTick->VAL > curr_tick) && (curr_time_ms == time_ms)) {
+    /* Waiting for delay, do nothing */
+  }
+}
+
+/** @brief  Delay in us
+  * @param  the time to delay(unit: us)
+  * @note   
+  * @retval None
+  */
+void delay_us(uint32_t us) {
+  if (us > 1000) {
+    uint32_t ms_count = us / 1000;
+    us %= 1000;
+    delay_ms(ms_count);
+  }
+  uint32_t curr_systick_value = SysTick->VAL;
+  uint32_t curr_time_ms = time_ms;
+  uint32_t total_tick = us * 168;
+  if (curr_systick_value < total_tick) {
+    while (curr_time_ms == time_ms) {
+      /* waiting here */
+    }
+    while (curr_time_ms + 1 == time_ms) {
+      if (SysTick->VAL <= (SysTick->LOAD + curr_systick_value - total_tick)) break;
+    }
+  } else {
+    while (curr_time_ms == time_ms) {
+      if (SysTick->VAL <= (curr_systick_value - total_tick)) break;
+    }
+  }
+}
+
+/** @brief  return the time of system in ms
+  * @param  none
+  * 
+  * @retval None
+  */
+uint32_t millis(void) {
+  return time_ms;
 }
 
 /** @brief  Config the clocks for system
@@ -193,7 +238,7 @@ static void usart_config(void) {
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
   USART_InitTypeDef USART_InitStruct;
   USART_StructInit(&USART_InitStruct);
-  USART_InitStruct.USART_BaudRate = 115200;
+  USART_InitStruct.USART_BaudRate = 57600;
   USART_InitStruct.USART_WordLength = USART_WordLength_9b;
   USART_InitStruct.USART_StopBits = USART_StopBits_1;
   USART_InitStruct.USART_Parity = USART_Parity_Even;
@@ -258,8 +303,11 @@ int main(void) {
     DMA_ClearFlag(DMA1_Stream6, DMA_FLAG_TCIF6);
     DMA_Cmd(DMA1_Stream6, ENABLE);
     // USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);
-    GPIO_ToggleBits(GPIOD, LED_BLUE);
-    delay_ms(500);
+    while (1) {
+      GPIO_ToggleBits(GPIOD, LED_BLUE);
+      delay_ms(500);
+      // delay_us(500000);
+    }
   }
   return 0;
 }
